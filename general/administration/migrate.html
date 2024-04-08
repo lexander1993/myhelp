@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
-      <title>Migrating | myhelp </title>
+      <title>Digital Measurement | myhelp </title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="title" content="Migrating | myhelp ">
+      <meta name="title" content="Digital Measurement | myhelp ">
       
       
       <link rel="icon" href="../../favicon.ico">
@@ -85,123 +85,145 @@
         </div>
 
         <article data-uid="admin-migrate">
-<h1 id="migrating">Migrating</h1>
+<h1 id="1-concepts">1. Concepts</h1>
 
-<p>It is possible to migrate your system to another system by using environment variables.
-It's possible to do this via the command line or by using Docker environment variables.
-To read more, see the <a href="https://jellyfin.org/docs/general/administration/configuration.html">Configuration</a> page.</p>
-<h2 id="watched-status-migration">Watched Status Migration</h2>
-<p>There are scripts available that will use the API to copy watched status and users from one instance to another.
-This can be done from Plex, Emby or another Jellyfin instance.</p>
-<p><a href="https://github.com/CobayeGunther/Emby2Jelly">Emby/Jellyfin to Jellyfin migration</a></p>
-<p><a href="https://github.com/wilmardo/migrate-plex-to-jellyfin">Plex to Jellyfin migration</a></p>
-<h2 id="migrating-linux-install-to-docker">Migrating Linux install to Docker</h2>
-<p>It's possible to use the data of a local install in the official docker image by mapping files and folders to the same locations and configuring the image accordingly.</p>
-<div class="NOTE">
-<h5>Note</h5>
-<p>You need to have exactly matching paths for your files inside the docker container!
-This means that if your media is stored at <code>/media/raid/</code> this path needs to be accessible at <code>/media/raid/</code> inside the docker container too - the configurations below do include examples.</p>
-</div>
-<p>To guarantee proper permissions, get the <code>uid</code> and <code>gid</code> of the local user Jellyfin runs as (on a default install this is the <code>jellyfin</code> system user).
-You can do this by running the following command:</p>
-<pre><code class="lang-sh">   id jellyfin
-</code></pre>
-<p>You need to replace the <code>&lt;uid&gt;:&lt;gid&gt;</code> placeholder below with the correct values.</p>
-<div class="NOTE">
-<h5>Note</h5>
-<p>To properly map the folders for your install, go to <code>Dashboard &gt; Paths</code>.</p>
-</div>
-<h3 id="using-docker-cli">Using docker cli</h3>
-<pre><code class="lang-sh">docker run -d \
-    --user &lt;uid&gt;:&lt;gid&gt; \
-    -e JELLYFIN_CACHE_DIR=/var/cache/jellyfin \
-    -e JELLYFIN_CONFIG_DIR=/etc/jellyfin \
-    -e JELLYFIN_DATA_DIR=/var/lib/jellyfin \
-    -e JELLYFIN_LOG_DIR=/var/log/jellyfin \
-    --mount type=bind,source=/etc/jellyfin,target=/etc/jellyfin \
-    --mount type=bind,source=/var/cache/jellyfin,target=/var/cache/jellyfin \
-    --mount type=bind,source=/var/lib/jellyfin,target=/var/lib/jellyfin \
-    --mount type=bind,source=/var/log/jellyfin,target=/var/log/jellyfin \
-    --mount type=bind,source=&lt;/path/to/media&gt;,target=&lt;/path/to/media&gt; \
-    --net=host \
-    --restart=unless-stopped \
-    jellyfin/jellyfin
-</code></pre>
-<h3 id="using-docker-compose-yaml">Using docker-compose yaml</h3>
-<pre><code class="lang-yml">version: &quot;3&quot;
-services:
-  jellyfin:
-    image: jellyfin/jellyfin
-    user: &lt;uid&gt;:&lt;gid&gt;
-    network_mode: &quot;host&quot;
-    restart: &quot;unless-stopped&quot;
-    environment:
-      - JELLYFIN_CACHE_DIR=/var/cache/jellyfin
-      - JELLYFIN_CONFIG_DIR=/etc/jellyfin
-      - JELLYFIN_DATA_DIR=/var/lib/jellyfin
-      - JELLYFIN_LOG_DIR=/var/log/jellyfin
-    volumes:
-      - /etc/jellyfin:/etc/jellyfin
-      - /var/cache/jellyfin:/var/cache/jellyfin
-      - /var/lib/jellyfin:/var/lib/jellyfin
-      - /var/log/jellyfin:/var/log/jellyfin
-      - &lt;path-to-media&gt;:&lt;path-to-media&gt;
-</code></pre>
-<h2 id="migrating-from-emby-352-to-jellyfin">Migrating From Emby 3.5.2 to Jellyfin</h2>
-<div class="IMPORTANT">
-<h5>Important</h5>
-<p>Direct database migration from Emby (of any version) to Jellyfin is NOT SUPPORTED.
-We have found many subtle bugs due to the inconsistent database schemas that result from trying to do this, and strongly recommend that all Jellyfin users migrating from Emby start with a fresh database and library scan.</p>
-</div>
-<p>The original procedure is provided below for reference however we cannot support it nor guarantee that a system upgraded in this way will work properly, if at all.
-If anyone is interested in writing a database migration script which will correct the deficiencies in the existing database and properly import them into Jellyfin, <a class="xref" href="../contributing/index.html">we would welcome it however</a>!</p>
-<div class="WARNING">
-<h5>Warning</h5>
-<p>While it is technically possible to migrate existing configuration of Emby version 3.5.2 or earlier, due to subtle and weird bugs reported after such attempts we do not recommend this migration.
-Emby versions 3.5.3 or 3.6+ cannot be migrated.
-Thus we recommend creating a new Jellyfin configuration and rebuilding your library instead.</p>
-</div>
-<p>Windows users may take advantage of the <code>install-jellyfin.ps1</code> script in the <a href="https://github.com/jellyfin/jellyfin">Jellyfin repository</a> which includes an automatic upgrade option.</p>
-<p>This procedure is written for Debian-based Linux distributions, but can be translated to other platforms by following the same general principles.</p>
-<ol>
-<li><p>Upgrade to Emby version 3.5.2, so that the database schema is fully up-to-date and consistent.
-While this is not required, it can help reduce the possibility of obscure bugs in the database.</p>
-</li>
-<li><p>Stop the <code>emby-server</code> daemon:</p>
-<pre><code class="lang-sh">sudo service emby-server stop
-</code></pre>
-</li>
-<li><p>Move your existing Emby data directory out of the way:</p>
-<pre><code class="lang-sh">sudo mv /var/lib/emby /var/lib/emby.backup
-</code></pre>
-</li>
-<li><p>Remove or purge the <code>emby-server</code> package:</p>
-<pre><code class="lang-sh">sudo apt purge emby-server
-</code></pre>
-</li>
-<li><p>Install the <code>jellyfin</code> package using the <a class="xref" href="installing.html">installation instructions</a>.</p>
-</li>
-<li><p>Stop the <code>jellyfin</code> daemon:</p>
-<pre><code class="lang-sh">sudo service jellyfin stop
-</code></pre>
-</li>
-<li><p>Copy over all the data files from the Emby backup data directory:</p>
-<pre><code class="lang-sh">sudo cp -a /var/lib/emby.backup/* /var/lib/jellyfin/
-</code></pre>
-</li>
-<li><p>Correct ownership on the new data directory:</p>
-<pre><code class="lang-sh">sudo chown -R jellyfin:jellyfin /var/lib/jellyfin
-</code></pre>
-</li>
-<li><p>Mark Startup Wizard as completed - if not marked as completed then it can be a security risk especially if remote access is enabled:</p>
-<pre><code class="lang-sh">sudo sed -i '/IsStartupWizardCompleted/s/false/true/' /etc/jellyfin/system.xml
-</code></pre>
-</li>
-<li><p>Start the <code>jellyfin</code> daemon:</p>
-</li>
-</ol>
-<pre><code class="lang-sh">sudo service jellyfin start
-</code></pre>
+<h2 id="11-drawings">1.1 Drawings</h2>
+<p>The Drawings information can be found in the table below:</p>
+<table>
+<thead>
+<tr>
+<th>Properties</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Display Name</td>
+<td>This is the name that will be displayed in the drawing selection dropdown. By default, it is filled in with the drawing’s filename however this can be overwritten.</td>
+</tr>
+<tr>
+<td>Allocate Folder</td>
+<td>This allows the drawings to be allocated under folders for easy sorting/display. Any previously created folder name will be stored and available off the dropdown for future use.</td>
+</tr>
+<tr>
+<td>File Path</td>
+<td>Automatically filled in based on the drawing's file location. Press the button to re-select/change the drawing before finalizing the properties.</td>
+</tr>
+<tr>
+<td>Load Visuals</td>
+<td>Deselecting the Load Visuals check-box when uploading a drawing or within its properties means the drawing will be shown without any drawing visuals on the presented drawing.</td>
+</tr>
+<tr>
+<td>Load Text</td>
+<td>Deselecting the Load Visuals check-box when uploading a drawing or within its properties means the drawing will be shown without any text on the presented drawing.</td>
+</tr>
+<tr>
+<td>Drawing Title</td>
+<td>Allows the drawing title as shown on the drawing to be entered.</td>
+</tr>
+<tr>
+<td>Number</td>
+<td>Allows the drawing number as shown on the drawing to be entered.</td>
+</tr>
+<tr>
+<td>Revision</td>
+<td>Allows the revision name/number as shown on the drawing to be entered.</td>
+</tr>
+<tr>
+<td>Received Date</td>
+<td>Allows the date that the drawing was received to be entered. Press the icon to get access to the full calendar or manually type in the date.</td>
+</tr>
+<tr>
+<td>Unit</td>
+<td>This reflects the unit that the dimensions are drawn/shown as on the drawing.</td>
+</tr>
+<tr>
+<td>Drawing Multiplier</td>
+<td>This allows all measured quantities on the drawing to be multiplied by whichever number is entered here. For example, an apartment building may have 5 typical levels all the same so measurement could be done on one with 5 entered here and all quantities will be multiplied by 5 when measured on this drawing.</td>
+</tr>
+<tr>
+<td>Horizontal Axis (X)</td>
+<td>Reflects the scale of the drawing and can be manually entered based on the scale specified on the drawing or if the calibration feature is used this will be filled in automatically.</td>
+</tr>
+<tr>
+<td>Vertical Axis (Y)</td>
+<td>Reflects the scale of the drawing and can be manually entered based on the scale specified on the drawing or if the calibration feature is used this will be filled in automatically.</td>
+</tr>
+<tr>
+<td>Apply to Both</td>
+<td>When ticked anything entered in the X Axis will automatically fill in with the same value in the Y Axis. By default, it is ticked.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="12-dm-objects">1.2 DM Objects</h2>
+<table>
+<thead>
+<tr>
+<th>Properties</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>This is the name of the object that will be displayed in the object measurement tree e.g., “100mm slab”.</td>
+</tr>
+<tr>
+<td>Group</td>
+<td>This is the folder that the object will appear under in the object measurement tree. Use forward slash (/) to add subfolders e.g. Concrete/32MPa etc.</td>
+</tr>
+<tr>
+<td>Default Measure</td>
+<td>This is the mode of measure that will be done for the object e.g. a slab could be measured using “Area” whereas a door may be measured as a “Count”</td>
+</tr>
+<tr>
+<td>Default Width, Height,</td>
+<td>This feature allows further Unit of Measure (UOM) values to be calculated based on the values entered here in conjunction with the mode of measure chosen. E.g., if “Area” is selected and a “Height” is entered as 0.10m then based on the area measured on the drawing the Volume (m3), Vertical Area (m2) etc. will also be calculated. These values can be updated later as required.</td>
+</tr>
+<tr>
+<td>Depth</td>
+<td></td>
+</tr>
+<tr>
+<td>Default Sill Height</td>
+<td>This feature allows you to specify the distance to which the selected object would sit off the drawing. E.g. If a window sill is being measured, by inputting 1.5 into the required cell would mean the window sill sits 1500mm above floor level.</td>
+</tr>
+<tr>
+<td>Positive Colour</td>
+<td>Select the colour that you wish for the positive measurements for the object to be displayed as. This can easily be updated in the main ribbon bar as required.</td>
+</tr>
+<tr>
+<td>Negative Colour</td>
+<td>Select the colour that you wish for the negative measurements for the object to be displayed as. This can easily be updated in the main ribbon bar as required.</td>
+</tr>
+<tr>
+<td>Hatch Style</td>
+<td>Select the type of hatching style that you would like the colour for the selected object to have.</td>
+</tr>
+<tr>
+<td>Methods</td>
+<td></td>
+</tr>
+<tr>
+<td>Creating a New Object</td>
+<td>A new object can be added from the toolbar within the Measurement tab, or within the Objects tab in the left-hand side workspace.</td>
+</tr>
+<tr>
+<td>Viewing an Objects</td>
+<td>Properties You can view an object’s properties by selecting the Properties icon within the Objects tab in the left-hand side workspace. The Properties window will also appear when a new Object is being created.</td>
+</tr>
+<tr>
+<td>Properties</td>
+<td></td>
+</tr>
+<tr>
+<td>Assigning Measurement</td>
+<td>Properties to an Object You can assign an object an additional measurement property, such as width, height, and depth, within the object’s Properties window. This can also be done from the far right-hand side measurement tab within the toolbar.</td>
+</tr>
+</tbody>
+</table>
+<h1 id="how-to-videos">How to Videos</h1>
+<p><a href="file:///C:/Users/lexbo/Downloads/ECS%20Internship%20_%20Alex%20Yen/UploadingADrawing.mp4">Uploading a drawing</a></p>
 
 </article>
 
